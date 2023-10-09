@@ -76,7 +76,8 @@ end Opposite
 open Opposite
 
 @[ext]
-structure Functor (α β : Type _) [Category α] [Category β] where
+structure Functor (α : Type u₁) (β : Type u₂) [Category.{v₁} α] [Category.{v₂} β] :
+    Type (max u₁ u₂ v₁ v₂) where
   obj : α → β
   map {A B : α} : (A ⟶ B) → (obj A ⟶ obj B)
   map_id {A : α} : map (𝟙 A) = 𝟙 (obj A)
@@ -224,7 +225,8 @@ def Op : Cat ⥤ Cat where
   map_comp _ _ := rfl
 
 @[ext]
-structure NatTrans (F G : α ⥤ β) where
+structure NatTrans {α : Type u₁} {β : Type u₂} [Category.{v₁} α] [Category.{v₂} β]
+    (F G : α ⥤ β) : Type (max u₁ v₂) where
   app (A : α) : F.obj A ⟶ G.obj A
   naturality {A B : α} (f : A ⟶ B) :
     app B ∘ F.map f = G.map f ∘ app A
@@ -232,11 +234,51 @@ structure NatTrans (F G : α ⥤ β) where
 attribute [simp] NatTrans.naturality
 
 def NatTrans.id (F : α ⥤ β) : NatTrans F F where
-  app (A : α) := 𝟙 (F.obj A)
+  app A := 𝟙 (F.obj A)
   naturality f := by simp
+
+@[simp]
+theorem NatTrans.id_app (F : α ⥤ β) (A : α) :
+    (NatTrans.id F).app A = 𝟙 (F.obj A) :=
+  rfl
+
+def NatTrans.comp {F G H : α ⥤ β} (η₁ : NatTrans G H) (η₂ : NatTrans F G) :
+    NatTrans F H where
+  app A := η₁.app A ∘ η₂.app A
+  naturality {A B} f := by
+    dsimp only
+    rw [assoc, naturality, ← assoc, naturality, assoc]
+
+@[simp]
+theorem NatTrans.comp_app {F G H : α ⥤ β}
+    (η₁ : NatTrans G H) (η₂ : NatTrans F G) (A : α) :
+    (η₁.comp η₂).app A = η₁.app A ∘ η₂.app A :=
+  rfl
+
+theorem NatTrans.id_comp {F G : α ⥤ β} (η : NatTrans F G) :
+    (NatTrans.id G).comp η = η :=
+  by ext; simp
+
+theorem NatTrans.comp_id {F G : α ⥤ β} (η : NatTrans F G) :
+    η.comp (NatTrans.id F) = η :=
+  by ext; simp
+
+theorem NatTrans.comp_assoc {F G H K : α ⥤ β}
+    (η₁ : NatTrans H K) (η₂ : NatTrans G H) (η₃ : NatTrans F G) :
+    (η₁.comp η₂).comp η₃ = η₁.comp (η₂.comp η₃) :=
+  by ext; simp
 
 def NatTrans.power : NatTrans (𝟭 (Type u)) Power.{u} where
   app α x := ({x} : Set α)
   naturality f := by funext; simp
+
+instance (α : Type u₁) (β : Type u₂) [Category.{v₁, u₁} α] [Category.{v₂, u₂} β] :
+    Category (α ⥤ β) where
+  Hom := NatTrans
+  id := NatTrans.id
+  comp := NatTrans.comp
+  id_comp' := NatTrans.id_comp
+  comp_id' := NatTrans.comp_id
+  assoc' := NatTrans.comp_assoc
 
 end Category
