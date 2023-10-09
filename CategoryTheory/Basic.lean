@@ -49,6 +49,11 @@ instance : Category (Type _) where
   comp_id' _ := rfl
   assoc' _ _ _ := rfl
 
+@[simp]
+theorem Type.comp (g : β ⟶ γ) (f : α ⟶ β) :
+    Category.comp g f = Function.comp g f :=
+  rfl
+
 structure Opposite (α : Sort u) :=
   unop : α
 
@@ -94,6 +99,12 @@ def Power : Type u ⥤ Type u where
     funext S
     exact Set.image_comp g f S
 
+@[simp]
+theorem Power_obj : Power.obj α = Set α := rfl
+
+@[simp]
+theorem Power_map : Power.map f = Set.image f := rfl
+
 /-- The contravariant powerset functor. -/
 def CoPower : (Type u)ᵒᵖ ⥤ Type u where
   obj A := Set (unop A)
@@ -109,6 +120,12 @@ def Functor.id (α : Type _) [Category α] : α ⥤ α where
 
 scoped notation "𝟭" => Functor.id
 
+@[simp]
+theorem Functor.id_obj : (𝟭 α).obj A = A := rfl
+
+@[simp]
+theorem Functor.id_map : (𝟭 α).map f = f := rfl
+
 def Functor.comp (G : β ⥤ γ) (F : α ⥤ β) : α ⥤ γ where
   obj A := G.obj (F.obj A)
   map f := G.map (F.map f)
@@ -116,6 +133,16 @@ def Functor.comp (G : β ⥤ γ) (F : α ⥤ β) : α ⥤ γ where
   map_comp := by simp
 
 scoped infixr:80 " ◌ " => Functor.comp
+
+@[simp]
+theorem Functor.comp_obj (G : β ⥤ γ) (F : α ⥤ β) :
+    (G ◌ F).obj A = G.obj (F.obj A) :=
+  rfl
+
+@[simp]
+theorem Functor.comp_map (G : β ⥤ γ) (F : α ⥤ β) :
+    (G ◌ F).map f = G.map (F.map f) :=
+  rfl
 
 @[simp]
 theorem Functor.id_comp (F : α ⥤ β) : 𝟭 β ◌ F = F :=
@@ -195,5 +222,21 @@ def Op : Cat ⥤ Cat where
   map f := f.opposite
   map_id := rfl
   map_comp _ _ := rfl
+
+@[ext]
+structure NatTrans (F G : α ⥤ β) where
+  app (A : α) : F.obj A ⟶ G.obj A
+  naturality {A B : α} (f : A ⟶ B) :
+    app B ∘ F.map f = G.map f ∘ app A
+
+attribute [simp] NatTrans.naturality
+
+def NatTrans.id (F : α ⥤ β) : NatTrans F F where
+  app (A : α) := 𝟙 (F.obj A)
+  naturality f := by simp
+
+def NatTrans.power : NatTrans (𝟭 (Type u)) Power.{u} where
+  app α x := ({x} : Set α)
+  naturality f := by funext; simp
 
 end Category

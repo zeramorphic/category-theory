@@ -92,6 +92,15 @@ theorem image_comp (g : β → γ) (f : α → β) (s : Set α) :
   unfold image
   aesop
 
+@[simp]
+theorem image_singleton (f : α → β) (x : α) : image f {x} = {f x} := by
+  ext x
+  constructor
+  · rintro ⟨_, rfl, rfl⟩
+    rfl
+  · rintro rfl
+    exact ⟨x, rfl, rfl⟩
+
 def preimage (f : α → β) (s : Set β) : Set α := {a | f a ∈ s}
 
 @[simp]
