@@ -224,6 +224,98 @@ def Op : Cat ⥤ Cat where
   map_id := rfl
   map_comp _ _ := rfl
 
+structure Congruence (α : Type _) [Category α] where
+  rel (A B : α) : (A ⟶ B) → (A ⟶ B) → Prop
+  equivalence (A B : α) : Equivalence (rel A B)
+  rel_whisker {A B C : α} (f g : B ⟶ C) (h : A ⟶ B) (fg : rel B C f g) :
+    rel A C (f ∘ h) (g ∘ h)
+  whisker_rel {A B C : α} (f : B ⟶ C) (g h : A ⟶ B) (fg : rel A B g h) :
+    rel A C (f ∘ g) (f ∘ h)
+
+def Congruence.setoid (r : Congruence α) (A B : α) : Setoid (A ⟶ B) where
+  r := r.rel A B
+  iseqv := r.equivalence A B
+
+structure HomQuotient (r : Congruence α) where
+  unquot : α
+
+def HomQuotient.quotObj (r : Congruence α) (A : α) :
+    HomQuotient r :=
+  ⟨A⟩
+
+def HomQuotient.quotHom (r : Congruence α) {A B : α} (f : A ⟶ B) :
+    Quotient (r.setoid A B) :=
+  Quotient.mk _ f
+
+theorem HomQuotient.comp_rel {r : Congruence α} {A B C : HomQuotient r}
+    (f₁ : B.unquot ⟶ C.unquot) (g₁ : A.unquot ⟶ B.unquot)
+    (f₂ : B.unquot ⟶ C.unquot) (g₂ : A.unquot ⟶ B.unquot)
+    (hf : r.rel _ _ f₁ f₂) (hg : r.rel _ _ g₁ g₂) :
+    Quotient.mk (Congruence.setoid r A.unquot C.unquot) (f₁ ∘ g₁) =
+    Quotient.mk (Congruence.setoid r A.unquot C.unquot) (f₂ ∘ g₂) := by
+  have h₁ := r.whisker_rel f₁ g₁ g₂ hg
+  have h₂ := r.rel_whisker f₁ f₂ g₂ hf
+  exact Quotient.sound ((r.equivalence _ _).trans h₁ h₂)
+
+@[simp]
+theorem _root_.Quotient.lift₂_mk {α β γ : Sort _} {_ : Setoid α} {_ : Setoid β}
+    (f : α → β → γ)
+    (h : ∀ (a₁ : α) (a₂ : β) (b₁ : α) (b₂ : β), a₁ ≈ b₁ → a₂ ≈ b₂ → f a₁ a₂ = f b₁ b₂)
+    (a : α) (b : β) :
+    Quotient.lift₂ f h (Quotient.mk _ a) (Quotient.mk _ b) = f a b :=
+  rfl
+
+instance (r : Congruence α) : Category (HomQuotient r) where
+  Hom A B := Quotient (r.setoid A.unquot B.unquot)
+  id A := Quotient.mk _ (𝟙 A.unquot)
+  comp := Quotient.lift₂ (fun f g => Quotient.mk _ (f ∘ g)) HomQuotient.comp_rel
+  id_comp' := by
+    intro A B f
+    refine Quotient.inductionOn f ?_
+    simp
+  comp_id' := by
+    intro A B f
+    refine Quotient.inductionOn f ?_
+    simp
+  assoc' := by
+    intro A B C D f g h
+    refine Quotient.inductionOn₃ f g h ?_
+    simp
+
+@[simp]
+theorem HomQuotient.quotHom_eq_iff (r : Congruence α)
+    {A B : α} (f g : A ⟶ B) :
+    quotHom r f = quotHom r g ↔ r.rel A B f g := by
+  constructor
+  · intro h
+    exact Quotient.exact h
+  · intro h
+    exact Quotient.sound h
+
+@[elab_as_elim]
+theorem HomQuotient.inductionOn {r : Congruence α}
+    {A B : HomQuotient r} {motive : (A ⟶ B) → Prop}
+    (f : A ⟶ B) (h : ∀ f : A.unquot ⟶ B.unquot, motive (quotHom r f)) :
+    motive f :=
+  Quotient.inductionOn f h
+
+/-- The quotient map into a quotient category. -/
+def HomQuotient.quotient (r : Congruence α) : α ⥤ HomQuotient r where
+  obj A := quotObj r A
+  map f := quotHom r f
+  map_id := by aesop
+  map_comp := by aesop
+
+@[simp]
+theorem HomQuotient.quotient_obj (r : Congruence α) (A : α) :
+    (quotient r).obj A = quotObj r A :=
+  rfl
+
+@[simp]
+theorem HomQuotient.quotient_map (r : Congruence α) {A B : α} (f : A ⟶ B) :
+    (quotient r).map f = quotHom r f :=
+  rfl
+
 @[ext]
 structure NatTrans {α : Type u₁} {β : Type u₂} [Category.{v₁} α] [Category.{v₂} β]
     (F G : α ⥤ β) : Type (max u₁ v₂) where
@@ -280,5 +372,59 @@ instance (α : Type u₁) (β : Type u₂) [Category.{v₁, u₁} α] [Category.
   id_comp' := NatTrans.id_comp
   comp_id' := NatTrans.comp_id
   assoc' := NatTrans.comp_assoc
+
+structure Iso (A B : α) where
+  toHom : A ⟶ B
+  invHom : B ⟶ A
+  toHom_invHom : toHom ∘ invHom = 𝟙 B
+  invHom_toHom : invHom ∘ toHom = 𝟙 A
+
+infixl:25 " ≃ " => Iso
+
+instance : Coe (A ≃ B) (A ⟶ B) where
+  coe := Iso.toHom
+
+def Iso.refl (A : α) : A ≃ A where
+  toHom := 𝟙 A
+  invHom := 𝟙 A
+  toHom_invHom := by simp
+  invHom_toHom := by simp
+
+def Iso.symm (f : A ≃ B) : B ≃ A where
+  toHom := f.invHom
+  invHom := f.toHom
+  toHom_invHom := f.invHom_toHom
+  invHom_toHom := f.toHom_invHom
+
+@[simp]
+theorem Iso.comp_symm (f : A ≃ B) :
+    f ∘ (f.symm : B ⟶ A) = 𝟙 B :=
+  f.toHom_invHom
+
+@[simp]
+theorem Iso.symm_comp (f : A ≃ B) :
+    f.symm ∘ (f : A ⟶ B) = 𝟙 A :=
+  f.invHom_toHom
+
+def Faithful (F : α ⥤ β) : Prop :=
+  ∀ A B : α, ∀ f g : A ⟶ B, F.map f = F.map g → f = g
+
+def Full (F : α ⥤ β) : Prop :=
+  ∀ A B : α, ∀ g : F.obj A ⟶ F.obj B, ∃ f : A ⟶ B, F.map f = g
+
+def EssSurjective (F : α ⥤ β) : Prop :=
+  ∀ B : β, Nonempty ((A : α) ×' (F.obj A ≃ B))
+
+theorem HomQuotient.quotient_full (r : Congruence α) :
+    Full (quotient r) := by
+  intro A B g
+  refine Quotient.inductionOn g ?_
+  intro g
+  exact ⟨g, rfl⟩
+
+theorem HomQuotient.quotient_essSurjective (r : Congruence α) :
+    EssSurjective (quotient r) := by
+  intro B
+  exact ⟨⟨B.unquot, Iso.refl _⟩⟩
 
 end Category
