@@ -50,6 +50,11 @@ instance : Category (Type _) where
   assoc' _ _ _ := rfl
 
 @[simp]
+theorem Type.id (α : Type _) :
+    𝟙 α = fun x => x :=
+  rfl
+
+@[simp]
 theorem Type.comp (g : β ⟶ γ) (f : α ⟶ β) :
     Category.comp g f = Function.comp g f :=
   rfl
@@ -372,6 +377,17 @@ instance (α : Type u₁) (β : Type u₂) [Category.{v₁, u₁} α] [Category.
   id_comp' := NatTrans.id_comp
   comp_id' := NatTrans.comp_id
   assoc' := NatTrans.comp_assoc
+
+@[simp]
+theorem Functor.Hom {F G : α ⥤ β} : (F ⟶ G) = NatTrans F G := rfl
+
+@[simp]
+theorem Functor.id' {F : α ⥤ β} : 𝟙 F = NatTrans.id F := rfl
+
+@[simp]
+theorem Functor.comp' {F G H : α ⥤ β} {η₁ : G ⟶ H} {η₂ : F ⟶ G} :
+    η₁ ∘ η₂ = NatTrans.comp η₁ η₂ :=
+  rfl
 
 structure Iso (A B : α) where
   toHom : A ⟶ B
